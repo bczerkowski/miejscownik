@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 import '../data/repository.dart';
 import '../models/place.dart';
+import '../services/image_pick_web.dart';
 import '../services/paste_web.dart';
 import '../theme.dart';
 import '../utils/image_utils.dart';
@@ -20,7 +20,6 @@ class PlaceEditScreen extends StatefulWidget {
 }
 
 class _PlaceEditScreenState extends State<PlaceEditScreen> {
-  final _picker = ImagePicker();
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
   final _videoCtrl = TextEditingController();
@@ -63,34 +62,30 @@ class _PlaceEditScreenState extends State<PlaceEditScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImages(ImageSource source) async {
+  Future<void> _addImages(Future<List<String>> Function() picker) async {
     try {
-      if (source == ImageSource.gallery) {
-        final files = await _picker.pickMultiImage(imageQuality: 82);
-        for (final f in files) {
-          final bytes = await f.readAsBytes();
-          _images.add(encodeDataUrl(bytes, mime: _mimeOf(f.name)));
-        }
-      } else {
-        final f =
-            await _picker.pickImage(source: source, imageQuality: 82);
-        if (f != null) {
-          final bytes = await f.readAsBytes();
-          _images.add(encodeDataUrl(bytes, mime: _mimeOf(f.name)));
-        }
+      final urls = await picker();
+      if (urls.isNotEmpty && mounted) {
+        setState(() => _images.addAll(urls));
       }
-      if (mounted) setState(() {});
-    } catch (e) {
-      _toast('Nie udało się dodać zdjęcia');
+    } catch (_) {
+      if (mounted) _toast('Nie udało się dodać zdjęcia');
     }
   }
 
-  String _mimeOf(String name) {
-    final n = name.toLowerCase();
-    if (n.endsWith('.png')) return 'image/png';
-    if (n.endsWith('.webp')) return 'image/webp';
-    if (n.endsWith('.gif')) return 'image/gif';
-    return 'image/jpeg';
+  void _pickGallery() => _addImages(() => pickImageFiles(multiple: true));
+  void _pickCamera() =>
+      _addImages(() => pickImageFiles(multiple: false, camera: true));
+
+  Future<void> _pasteImage() async {
+    final url = await readClipboardImage();
+    if (!mounted) return;
+    if (url != null) {
+      setState(() => _images.add(url));
+      _toast('Wklejono zdjęcie');
+    } else {
+      _toast('W schowku nie ma zdjęcia');
+    }
   }
 
   Future<void> _addCategory() async {
@@ -301,9 +296,10 @@ class _PlaceEditScreenState extends State<PlaceEditScreen> {
               ListTile(
                 leading: const Icon(Icons.photo_library_outlined),
                 title: const Text('Wybierz z galerii'),
+                subtitle: const Text('Możesz zaznaczyć kilka naraz'),
                 onTap: () {
                   Navigator.pop(context);
-                  _pickImages(ImageSource.gallery);
+                  _pickGallery();
                 },
               ),
               ListTile(
@@ -311,7 +307,16 @@ class _PlaceEditScreenState extends State<PlaceEditScreen> {
                 title: const Text('Zrób zdjęcie'),
                 onTap: () {
                   Navigator.pop(context);
-                  _pickImages(ImageSource.camera);
+                  _pickCamera();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.content_paste_rounded),
+                title: const Text('Wklej ze schowka'),
+                subtitle: const Text('Skopiowane zdjęcie (Ctrl+V)'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pasteImage();
                 },
               ),
               const SizedBox(height: 8),

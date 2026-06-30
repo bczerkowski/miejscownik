@@ -29,7 +29,36 @@ class MiejscownikApp extends StatelessWidget {
       title: 'Miejscownik',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
+      builder: (context, child) => _MobileFrame(child: child),
       home: const RootScaffold(),
+    );
+  }
+}
+
+/// Mobile-first: na szerokim ekranie zamyka aplikację w wyśrodkowanej kolumnie
+/// o stałej szerokości (jak web Instagrama/Telegrama), zamiast rozciągać ją na
+/// cały monitor. Na telefonie nic nie zmienia.
+class _MobileFrame extends StatelessWidget {
+  const _MobileFrame({required this.child});
+
+  final Widget? child;
+
+  static const double _maxWidth = 600;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (child == null || width <= _maxWidth) return child!;
+    return ColoredBox(
+      color: AppColors.backdrop,
+      child: Center(
+        child: ClipRect(
+          child: SizedBox(
+            width: _maxWidth,
+            child: Material(color: AppColors.bg, child: child),
+          ),
+        ),
+      ),
     );
   }
 }

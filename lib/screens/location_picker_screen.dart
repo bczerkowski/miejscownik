@@ -70,6 +70,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         'q': q,
         'format': 'jsonv2',
         'limit': '6',
+        'addressdetails': '1',
         'accept-language': 'pl',
       });
       final res = await http.get(uri,
@@ -78,6 +79,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         final list = (jsonDecode(res.body) as List)
             .map((e) => _Suggestion(
                   displayName: e['display_name'] as String,
+                  formatted: _formatAddress(
+                      e['address'] as Map<String, dynamic>?,
+                      e['display_name'] as String),
                   lat: double.parse(e['lat'] as String),
                   lng: double.parse(e['lon'] as String),
                 ))
@@ -94,7 +98,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   void _selectSuggestion(_Suggestion s) {
     setState(() {
       _pin = LatLng(s.lat, s.lng);
-      _address = s.displayName;
+      _address = s.formatted;
       _suggestions = [];
       _searchCtrl.text = s.displayName;
     });
@@ -108,6 +112,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
         'lat': '${p.latitude}',
         'lon': '${p.longitude}',
         'format': 'jsonv2',
+        'addressdetails': '1',
         'accept-language': 'pl',
       });
       final res = await http.get(uri,
@@ -115,10 +120,49 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
         if (mounted) {
-          setState(() => _address = body['display_name'] as String?);
+          setState(() => _address = _formatAddress(
+              body['address'] as Map<String, dynamic>?,
+              body['display_name'] as String?));
         }
       }
     } catch (_) {/* zignoruj */}
+  }
+
+  /// Buduje zwięzły adres w 2–3 liniach (rozdzielonych '\n'):
+  /// ulica + numer / kod + miasto / województwo + kraj.
+  String? _formatAddress(Map<String, dynamic>? a, String? displayName) {
+    if (a == null) return displayName;
+    String? pick(List<String> keys) {
+      for (final k in keys) {
+        final v = a[k];
+        if (v is String && v.trim().isNotEmpty) return v.trim();
+      }
+      return null;
+    }
+
+    final road = pick(['road', 'pedestrian', 'footway', 'path', 'cycleway']);
+    final house = pick(['house_number']);
+    final name = pick(
+        ['amenity', 'tourism', 'shop', 'leisure', 'building', 'attraction']);
+    final postcode = pick(['postcode']);
+    final city = pick(
+        ['city', 'town', 'village', 'municipality', 'hamlet', 'suburb']);
+    final state = pick(['state', 'region']);
+    final country = pick(['country']);
+
+    final lines = <String>[];
+    final l1 = [?road, ?house].join(' ');
+    if (l1.isNotEmpty) {
+      lines.add(l1);
+    } else if (name != null) {
+      lines.add(name);
+    }
+    final l2 = [?postcode, ?city].join(' ');
+    if (l2.isNotEmpty) lines.add(l2);
+    final l3 = [?state, ?country].join(', ');
+    if (l3.isNotEmpty) lines.add(l3);
+
+    return lines.isEmpty ? displayName : lines.join('\n');
   }
 
   void _onTapMap(TapPosition _, LatLng p) {
@@ -285,9 +329,14 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 }
 
 class _Suggestion {
-  _Suggestion(
-      {required this.displayName, required this.lat, required this.lng});
+  _Suggestion({
+    required this.displayName,
+    required this.formatted,
+    required this.lat,
+    required this.lng,
+  });
   final String displayName;
+  final String? formatted;
   final double lat;
   final double lng;
 }

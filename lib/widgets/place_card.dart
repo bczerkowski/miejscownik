@@ -87,7 +87,7 @@ class PlaceCard extends StatelessWidget {
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                place.address!,
+                                place.address!.replaceAll('\n', ' · '),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(

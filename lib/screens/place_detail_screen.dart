@@ -262,22 +262,15 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     );
   }
 
-  /// Adres rozbity na czytelne linie (z długiego ciągu z geokodera).
+  /// Adres pogrupowany w 2–3 logiczne linie, większymi i ciemnymi literami.
   Widget _addressBlock(String address) {
-    final parts = address
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
-    // Usuń duplikaty zachowując kolejność.
-    final seen = <String>{};
-    final lines = parts.where((e) => seen.add(e)).toList();
+    final lines = _addressLines(address);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
-          padding: EdgeInsets.only(top: 2),
-          child: Icon(Icons.place_rounded, size: 18, color: AppColors.seed),
+          padding: EdgeInsets.only(top: 3),
+          child: Icon(Icons.place_rounded, size: 20, color: AppColors.seed),
         ),
         const SizedBox(width: 8),
         Expanded(
@@ -285,18 +278,54 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               for (var i = 0; i < lines.length; i++)
-                Text(lines[i],
-                    style: TextStyle(
-                      color: i == 0 ? AppColors.ink : AppColors.muted,
-                      fontWeight: i == 0 ? FontWeight.w600 : FontWeight.w400,
-                      fontSize: i == 0 ? 14.5 : 13.5,
-                      height: 1.4,
-                    )),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 1),
+                  child: Text(lines[i],
+                      style: TextStyle(
+                        color: i == 0
+                            ? AppColors.ink
+                            : const Color(0xFF333B37),
+                        fontWeight:
+                            i == 0 ? FontWeight.w700 : FontWeight.w500,
+                        fontSize: i == 0 ? 17 : 14.5,
+                        height: 1.35,
+                      )),
+                ),
             ],
           ),
         ),
       ],
     );
+  }
+
+  /// Zwraca 2–3 linie adresu. Nowy format jest rozdzielony '\n'; stary, długi
+  /// ciąg z geokodera grupujemy heurystycznie.
+  List<String> _addressLines(String address) {
+    if (address.contains('\n')) {
+      return address
+          .split('\n')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+    final parts = address
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    if (parts.length <= 3) return parts;
+    // L1 = ulica/nazwa; L2 = kod + miasto; L3 = kraj/województwo.
+    final pc = RegExp(r'\d{2}-\d{3}');
+    final pcIdx = parts.indexWhere((e) => pc.hasMatch(e));
+    final l1 = parts.first;
+    final l2 = pcIdx >= 0
+        ? [
+            parts[pcIdx],
+            if (pcIdx + 1 < parts.length) parts[pcIdx + 1],
+          ].join(' ')
+        : parts[1];
+    final l3 = parts.last;
+    return [l1, l2, l3];
   }
 
   /// Notatki: każda linia jako punkt w eleganckim panelu.
