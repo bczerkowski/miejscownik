@@ -48,7 +48,9 @@ class PlaceRepository extends ChangeNotifier {
     }
     // Upewnij się, że każda ścieżka użyta przez miejsce istnieje w drzewie.
     for (final p in _items) {
-      if (p.categoryPath.isNotEmpty) _registerPath(p.categoryPath);
+      for (final c in p.categories) {
+        _registerPath(c);
+      }
     }
     notifyListeners();
   }
@@ -56,8 +58,10 @@ class PlaceRepository extends ChangeNotifier {
   // ---- Miejsca -------------------------------------------------------------
 
   Future<void> upsert(Place place) async {
-    if (place.categoryPath.isNotEmpty) {
-      _registerPath(place.categoryPath);
+    if (place.categories.isNotEmpty) {
+      for (final c in place.categories) {
+        _registerPath(c);
+      }
       await _persistCategories();
     }
     await _places.put(place.id, place.toJson());
@@ -127,13 +131,14 @@ class PlaceRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Usuwa kategorię i wszystkie podkategorie. Miejsca z usuniętych ścieżek
-  /// trafiają do "Bez kategorii" (czyszczona jest ich ścieżka).
+  /// Usuwa kategorię i wszystkie podkategorie z drzewa oraz z miejsc (każde
+  /// miejsce traci pasujące przypisania, pozostałe zostają).
   Future<void> deleteCategory(List<String> path) async {
     _categories.removeWhere((c) => _isPrefix(path, c));
     for (final p in _items) {
-      if (_isPrefix(path, p.categoryPath)) {
-        p.categoryPath = [];
+      final before = p.categories.length;
+      p.categories.removeWhere((c) => _isPrefix(path, c));
+      if (p.categories.length != before) {
         await _places.put(p.id, p.toJson());
       }
     }
@@ -156,8 +161,16 @@ class PlaceRepository extends ChangeNotifier {
 
   // ---- Pomocnicze ----------------------------------------------------------
 
+  /// Liczba miejsc, których dowolna kategoria mieści się w [path].
   int countIn(List<String> path) =>
-      _items.where((p) => _isPrefix(path, p.categoryPath)).length;
+      _items.where((p) => matches(path, p)).length;
+
+  /// Czy miejsce [p] pasuje do filtra [filter] (pusty = wszystkie; w innym
+  /// wypadku którakolwiek z kategorii miejsca musi mieć [filter] jako prefiks).
+  static bool matches(List<String> filter, Place p) {
+    if (filter.isEmpty) return true;
+    return p.categories.any((c) => _isPrefix(filter, c));
+  }
 
   static bool _pathEquals(List<String> a, List<String> b) {
     if (a.length != b.length) return false;

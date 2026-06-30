@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../data/repository.dart';
 import '../models/place.dart';
+import '../services/paste_web.dart';
 import '../theme.dart';
 import '../utils/image_utils.dart';
 import '../widgets/category_picker.dart';
@@ -25,7 +26,7 @@ class _PlaceEditScreenState extends State<PlaceEditScreen> {
   final _videoCtrl = TextEditingController();
 
   List<String> _images = [];
-  List<String> _category = const [];
+  List<List<String>> _categories = [];
   double? _lat, _lng;
   String? _address;
 
@@ -40,15 +41,22 @@ class _PlaceEditScreenState extends State<PlaceEditScreen> {
       _descCtrl.text = e.description;
       _videoCtrl.text = e.videoUrl ?? '';
       _images = [...e.images];
-      _category = [...e.categoryPath];
+      _categories = e.categories.map((c) => [...c]).toList();
       _lat = e.lat;
       _lng = e.lng;
       _address = e.address;
     }
+    // Wklejanie zdjęć ze schowka (Ctrl+V).
+    enableImagePaste((dataUrl) {
+      if (!mounted) return;
+      setState(() => _images.add(dataUrl));
+      _toast('Wklejono zdjęcie');
+    });
   }
 
   @override
   void dispose() {
+    disableImagePaste();
     _titleCtrl.dispose();
     _descCtrl.dispose();
     _videoCtrl.dispose();
@@ -85,9 +93,19 @@ class _PlaceEditScreenState extends State<PlaceEditScreen> {
     return 'image/jpeg';
   }
 
-  Future<void> _pickCategory() async {
-    final picked = await pickCategory(context, initial: _category);
-    if (picked != null) setState(() => _category = picked);
+  Future<void> _addCategory() async {
+    final picked = await pickCategory(context, title: 'Dodaj kategorię');
+    if (picked == null || picked.isEmpty) return;
+    final exists = _categories.any((c) => _pathEquals(c, picked));
+    if (!exists) setState(() => _categories.add(picked));
+  }
+
+  bool _pathEquals(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   Future<void> _pickLocation() async {
@@ -122,7 +140,7 @@ class _PlaceEditScreenState extends State<PlaceEditScreen> {
       lat: _lat,
       lng: _lng,
       address: _address,
-      categoryPath: _category,
+      categories: _categories,
       createdAt:
           widget.existing?.createdAt ?? DateTime.now().millisecondsSinceEpoch,
     );
@@ -145,7 +163,19 @@ class _PlaceEditScreenState extends State<PlaceEditScreen> {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           _photoStrip(),
-          const SizedBox(height: 20),
+          const Padding(
+            padding: EdgeInsets.only(top: 8, left: 4),
+            child: Row(
+              children: [
+                Icon(Icons.content_paste_rounded,
+                    size: 14, color: AppColors.muted),
+                SizedBox(width: 6),
+                Text('Możesz też wkleić zdjęcie ze schowka (Ctrl+V)',
+                    style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
           _label('Nazwa'),
           TextField(
             controller: _titleCtrl,
@@ -154,8 +184,8 @@ class _PlaceEditScreenState extends State<PlaceEditScreen> {
                 hintText: 'np. Tajska knajpka na Jeziorańskiego'),
           ),
           const SizedBox(height: 20),
-          _label('Kategoria'),
-          _categoryField(),
+          _label('Kategorie'),
+          _categoryPills(),
           const SizedBox(height: 20),
           _label('Lokalizacja'),
           _locationField(),
@@ -315,33 +345,59 @@ class _PlaceEditScreenState extends State<PlaceEditScreen> {
     );
   }
 
-  Widget _categoryField() {
-    return InkWell(
-      onTap: _pickCategory,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+  Widget _categoryPills() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (var i = 0; i < _categories.length; i++)
+          _selectedPill(_categories[i].join(' › '),
+              onRemove: () => setState(() => _categories.removeAt(i))),
+        ActionChip(
+          avatar: const Icon(Icons.add_rounded, size: 18, color: AppColors.seed),
+          label: const Text('Dodaj kategorię'),
+          onPressed: _addCategory,
+          side: const BorderSide(color: AppColors.seed),
+          labelStyle: const TextStyle(
+              color: AppColors.seed, fontWeight: FontWeight.w600),
         ),
-        child: Row(
-          children: [
-            const Icon(Icons.folder_outlined, color: AppColors.muted),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                _category.isEmpty ? 'Bez kategorii' : _category.join('  ›  '),
-                style: TextStyle(
-                    color:
-                        _category.isEmpty ? AppColors.muted : AppColors.ink,
-                    fontWeight: FontWeight.w600),
+      ],
+    );
+  }
+
+  Widget _selectedPill(String text, {required VoidCallback onRemove}) {
+    return Container(
+      padding: const EdgeInsets.only(left: 14, right: 6, top: 7, bottom: 7),
+      decoration: BoxDecoration(
+        color: AppColors.seed,
+        borderRadius: BorderRadius.circular(40),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(text,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13)),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: Container(
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.25),
+                shape: BoxShape.circle,
               ),
+              child: const Icon(Icons.close_rounded,
+                  size: 14, color: Colors.white),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

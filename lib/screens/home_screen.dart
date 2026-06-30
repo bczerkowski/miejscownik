@@ -2,14 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../data/repository.dart';
 import '../models/place.dart';
-import '../services/sync_service.dart';
 import '../theme.dart';
 import '../utils/transitions.dart';
 import '../widgets/category_picker.dart';
 import '../widgets/place_card.dart';
 import 'place_detail_screen.dart';
-import 'place_edit_screen.dart';
-import 'sync_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -33,11 +30,12 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Place> _visible() {
     final q = _query.trim().toLowerCase();
     return repo.items.where((p) {
-      if (!PlaceRepository.isPrefix(_filter, p.categoryPath)) return false;
+      if (!PlaceRepository.matches(_filter, p)) return false;
       if (q.isEmpty) return true;
+      final cats = p.categories.map((c) => c.join(' ')).join(' ');
       return p.title.toLowerCase().contains(q) ||
           (p.address ?? '').toLowerCase().contains(q) ||
-          p.categoryPath.join(' ').toLowerCase().contains(q);
+          cats.toLowerCase().contains(q);
     }).toList();
   }
 
@@ -57,22 +55,9 @@ class _HomeScreenState extends State<HomeScreen> {
     Navigator.of(context).push(smoothRoute(PlaceDetailScreen(placeId: p.id)));
   }
 
-  void _add() {
-    Navigator.of(context).push(smoothRoute(const PlaceEditScreen()));
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _add,
-        backgroundColor: AppColors.seed,
-        foregroundColor: Colors.white,
-        elevation: 4,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Dodaj miejsce',
-            style: TextStyle(fontWeight: FontWeight.w700)),
-      ),
       body: AnimatedBuilder(
         animation: repo,
         builder: (context, _) {
@@ -169,29 +154,8 @@ class _HomeScreenState extends State<HomeScreen> {
             }
           }),
         ),
-        if (!_searching) _cloudButton(),
         const SizedBox(width: 4),
       ],
-    );
-  }
-
-  Widget _cloudButton() {
-    return AnimatedBuilder(
-      animation: sync,
-      builder: (context, _) {
-        final (icon, color) = switch (sync.state) {
-          SyncState.syncing => (Icons.cloud_sync_outlined, AppColors.accent),
-          SyncState.synced => (Icons.cloud_done_outlined, AppColors.seed),
-          SyncState.error => (Icons.cloud_off_outlined, const Color(0xFFB3261E)),
-          SyncState.offline => (Icons.cloud_outlined, AppColors.muted),
-        };
-        return IconButton(
-          icon: Icon(icon, color: color),
-          tooltip: 'Synchronizacja i kopie',
-          onPressed: () =>
-              Navigator.of(context).push(smoothRoute(const SyncScreen())),
-        );
-      },
     );
   }
 

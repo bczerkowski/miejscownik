@@ -63,10 +63,10 @@ class PlaceCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (place.categoryPath.isNotEmpty)
+                    if (place.hasCategories)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 8),
-                        child: _chip(place.categoryPath.join('  ·  ')),
+                        child: _categoryChips(place.leafLabels),
                       ),
                     Text(
                       place.title,
@@ -104,6 +104,20 @@ class PlaceCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _categoryChips(List<String> labels) {
+    const maxShown = 3;
+    final shown = labels.take(maxShown).toList();
+    final extra = labels.length - shown.length;
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final l in shown) _chip(l),
+        if (extra > 0) _chip('+$extra'),
+      ],
     );
   }
 

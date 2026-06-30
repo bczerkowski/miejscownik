@@ -14,10 +14,10 @@ class Place {
     this.lat,
     this.lng,
     this.address,
-    List<String>? categoryPath,
+    List<List<String>>? categories,
     required this.createdAt,
   })  : images = images ?? <String>[],
-        categoryPath = categoryPath ?? <String>[];
+        categories = categories ?? <List<String>>[];
 
   String id;
   String title;
@@ -33,14 +33,21 @@ class Place {
   double? lng;
   String? address;
 
-  /// Ścieżka kategorii, np. ["Polska", "Dolnośląskie", "Wrocław"].
-  List<String> categoryPath;
+  /// Lista przypisanych kategorii. Każda to hierarchiczna ścieżka, np.
+  /// `["Polska", "Dolnośląskie", "Wrocław"]` albo płaski tag `["Jedzenie"]`.
+  /// Miejsce może należeć do kilku kategorii naraz.
+  List<List<String>> categories;
 
   int createdAt;
 
   bool get hasLocation => lat != null && lng != null;
   bool get hasVideo => videoUrl != null && videoUrl!.trim().isNotEmpty;
+  bool get hasCategories => categories.isNotEmpty;
   String? get cover => images.isNotEmpty ? images.first : null;
+
+  /// Etykiety-liście (ostatni segment każdej ścieżki) – do chipsów na karcie.
+  List<String> get leafLabels =>
+      categories.where((c) => c.isNotEmpty).map((c) => c.last).toList();
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -51,7 +58,7 @@ class Place {
         'lat': lat,
         'lng': lng,
         'address': address,
-        'categoryPath': categoryPath,
+        'categories': categories,
         'createdAt': createdAt,
       };
 
@@ -65,13 +72,27 @@ class Place {
         lat: (m['lat'] as num?)?.toDouble(),
         lng: (m['lng'] as num?)?.toDouble(),
         address: m['address'] as String?,
-        categoryPath: (m['categoryPath'] as List?)
-                ?.map((e) => e as String)
-                .toList() ??
-            <String>[],
+        categories: _readCategories(m),
         createdAt: (m['createdAt'] as num?)?.toInt() ??
             DateTime.now().millisecondsSinceEpoch,
       );
+
+  /// Czyta nowy format `categories` (lista ścieżek) lub migruje stary
+  /// `categoryPath` (pojedyncza ścieżka).
+  static List<List<String>> _readCategories(Map<String, dynamic> m) {
+    final raw = m['categories'];
+    if (raw is List) {
+      return raw
+          .map((e) => (e as List).map((s) => s as String).toList())
+          .where((c) => c.isNotEmpty)
+          .toList();
+    }
+    final legacy = m['categoryPath'];
+    if (legacy is List && legacy.isNotEmpty) {
+      return [legacy.map((s) => s as String).toList()];
+    }
+    return <List<String>>[];
+  }
 
   String toJson() => jsonEncode(toMap());
   factory Place.fromJson(String s) =>

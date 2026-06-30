@@ -128,7 +128,11 @@ class _SyncScreenState extends State<SyncScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Synchronizacja i kopie')),
+      appBar: AppBar(
+        title: const Text('Profil'),
+        titleTextStyle: Theme.of(context).textTheme.headlineSmall,
+        automaticallyImplyLeading: false,
+      ),
       body: AnimatedBuilder(
         animation: sync,
         builder: (context, _) {

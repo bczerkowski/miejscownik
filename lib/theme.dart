@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 class AppColors {
   static const seed = Color(0xFF12715E); // głęboka zieleń podróżnicza
   static const accent = Color(0xFFE8743B); // ciepły koral (akcent)
-  static const bg = Color(0xFFF7F5F1); // ciepła biel
+  static const bg = Color(0xFFF4F5F7); // jasne, neutralne tło (karty wyskakują)
   static const surface = Color(0xFFFFFFFF);
   static const ink = Color(0xFF1C2421); // prawie-czarny zielonkawy
   static const muted = Color(0xFF6B736F);

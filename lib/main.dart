@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'data/repository.dart';
-import 'screens/home_screen.dart';
+import 'screens/root_scaffold.dart';
 import 'services/sync_service.dart';
 import 'theme.dart';
 
@@ -29,7 +29,7 @@ class MiejscownikApp extends StatelessWidget {
       title: 'Miejscownik',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
-      home: const HomeScreen(),
+      home: const RootScaffold(),
     );
   }
 }

@@ -191,14 +191,14 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (p.categoryPath.isNotEmpty)
+          if (p.hasCategories)
             Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Wrap(
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  for (var i = 0; i < p.categoryPath.length; i++)
+                  for (final label in p.leafLabels)
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 5),
@@ -206,7 +206,7 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                         color: AppColors.seed.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(40),
                       ),
-                      child: Text(p.categoryPath[i],
+                      child: Text(label,
                           style: const TextStyle(
                               color: AppColors.seed,
                               fontWeight: FontWeight.w600,
@@ -216,35 +216,21 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
               ),
             ),
           Text(p.title, style: Theme.of(context).textTheme.displaySmall),
-          if (p.address != null && p.address!.isNotEmpty)
+          if (p.address != null && p.address!.trim().isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.place_rounded,
-                      size: 18, color: AppColors.muted),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(p.address!,
-                        style: const TextStyle(
-                            color: AppColors.muted, height: 1.35)),
-                  ),
-                ],
-              ),
+              padding: const EdgeInsets.only(top: 10),
+              child: _addressBlock(p.address!),
             ),
           if (p.hasVideo) ...[
-            const SizedBox(height: 20),
-            _videoTile(p),
+            const SizedBox(height: 22),
+            _videoCard(p),
           ],
-          if (p.description.isNotEmpty) ...[
+          if (p.description.trim().isNotEmpty) ...[
             const SizedBox(height: 24),
-            Text('Notatki',
+            Text('Praktyczne info',
                 style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(p.description,
-                style: const TextStyle(
-                    fontSize: 15.5, height: 1.55, color: AppColors.ink)),
+            const SizedBox(height: 10),
+            _notesPanel(p.description),
           ],
           if (p.hasLocation) ...[
             const SizedBox(height: 24),
@@ -258,8 +244,8 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                 Expanded(
                   child: FilledButton.icon(
                     onPressed: () => _openNavigation(p),
-                    icon: const Icon(Icons.navigation_rounded),
-                    label: const Text('Nawiguj'),
+                    icon: const Icon(Icons.directions_rounded),
+                    label: const Text('Pokaż trasę (Google Maps)'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -276,50 +262,193 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     );
   }
 
-  Widget _videoTile(Place p) {
-    return GestureDetector(
-      onTap: () => _openVideo(p),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF2A2A33), Color(0xFF14141A)],
-          ),
-          borderRadius: BorderRadius.circular(20),
+  /// Adres rozbity na czytelne linie (z długiego ciągu z geokodera).
+  Widget _addressBlock(String address) {
+    final parts = address
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    // Usuń duplikaty zachowując kolejność.
+    final seen = <String>{};
+    final lines = parts.where((e) => seen.add(e)).toList();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 2),
+          child: Icon(Icons.place_rounded, size: 18, color: AppColors.seed),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: const BoxDecoration(
-                  color: AppColors.accent, shape: BoxShape.circle),
-              child:
-                  const Icon(Icons.play_arrow_rounded, color: Colors.white),
-            ),
-            const SizedBox(width: 14),
-            const Expanded(
-              child: Column(
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < lines.length; i++)
+                Text(lines[i],
+                    style: TextStyle(
+                      color: i == 0 ? AppColors.ink : AppColors.muted,
+                      fontWeight: i == 0 ? FontWeight.w600 : FontWeight.w400,
+                      fontSize: i == 0 ? 14.5 : 13.5,
+                      height: 1.4,
+                    )),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Notatki: każda linia jako punkt w eleganckim panelu.
+  Widget _notesPanel(String text) {
+    final items = text
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < items.length; i++)
+            Padding(
+              padding: EdgeInsets.only(bottom: i == items.length - 1 ? 0 : 10),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Obejrzyj wideo',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 15)),
-                  SizedBox(height: 2),
-                  Text('Rolka / film o tym miejscu',
-                      style:
-                          TextStyle(color: Colors.white60, fontSize: 12.5)),
+                  Container(
+                    margin: const EdgeInsets.only(top: 7),
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                        color: AppColors.accent, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(items[i],
+                        style: const TextStyle(
+                            fontSize: 15, height: 1.5, color: AppColors.ink)),
+                  ),
                 ],
               ),
             ),
-            const Icon(Icons.open_in_new_rounded,
-                color: Colors.white54, size: 20),
-          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _videoCard(Place p) {
+    final (label, icon, color) = _videoSource(p.videoUrl!);
+    final yt = _youTubeId(p.videoUrl!);
+    return GestureDetector(
+      onTap: () => _openVideo(p),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          color: const Color(0xFF14141A),
+          child: Column(
+            children: [
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: yt != null
+                        ? Image.network(
+                            'https://img.youtube.com/vi/$yt/hqdefault.jpg',
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) =>
+                                Container(color: color.withValues(alpha: 0.25)),
+                          )
+                        : Container(color: color.withValues(alpha: 0.22)),
+                  ),
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.92),
+                      shape: BoxShape.circle,
+                      boxShadow: softShadow,
+                    ),
+                    child: const Icon(Icons.play_arrow_rounded,
+                        color: AppColors.ink, size: 34),
+                  ),
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(40),
+                      ),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Icon(icon, color: Colors.white, size: 14),
+                        const SizedBox(width: 5),
+                        Text(label,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700)),
+                      ]),
+                    ),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text('Obejrzyj rolkę',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15)),
+                    ),
+                    const Icon(Icons.open_in_new_rounded,
+                        color: Colors.white54, size: 18),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  /// (etykieta, ikona, kolor) na podstawie domeny linku.
+  (String, IconData, Color) _videoSource(String url) {
+    final u = url.toLowerCase();
+    if (u.contains('tiktok')) {
+      return ('TikTok', Icons.music_note_rounded, const Color(0xFF010101));
+    }
+    if (u.contains('instagram') || u.contains('instagr.am')) {
+      return ('Instagram', Icons.camera_alt_rounded, const Color(0xFFC13584));
+    }
+    if (u.contains('youtube') || u.contains('youtu.be')) {
+      return ('YouTube', Icons.smart_display_rounded, const Color(0xFFCC0000));
+    }
+    if (u.contains('facebook') || u.contains('fb.watch')) {
+      return ('Facebook', Icons.facebook_rounded, const Color(0xFF1877F2));
+    }
+    return ('Wideo', Icons.play_circle_outline_rounded, AppColors.accent);
+  }
+
+  String? _youTubeId(String url) {
+    final m = RegExp(
+            r'(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})')
+        .firstMatch(url);
+    return m?.group(1);
   }
 
   Widget _mapPreview(Place p) {

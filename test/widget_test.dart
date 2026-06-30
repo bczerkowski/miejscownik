@@ -13,12 +13,15 @@ void main() {
       lat: 51.1,
       lng: 17.03,
       address: 'Wrocław',
-      categoryPath: const ['Polska', 'Dolnośląskie', 'Wrocław'],
+      categories: const [
+        ['Polska', 'Dolnośląskie', 'Wrocław'],
+        ['Jedzenie'],
+      ],
       createdAt: 1700000000000,
     );
     final restored = Place.fromJson(p.toJson());
     expect(restored.title, p.title);
-    expect(restored.categoryPath, p.categoryPath);
+    expect(restored.categories, p.categories);
     expect(restored.lat, p.lat);
     expect(restored.hasLocation, isTrue);
     expect(restored.hasVideo, isTrue);
