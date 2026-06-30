@@ -34,6 +34,34 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
     return i >= 0 ? repo.items[i] : null;
   }
 
+  void _goToPage(int i, int count) {
+    final t = i.clamp(0, count - 1);
+    _pageCtrl.animateToPage(t,
+        duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
+  }
+
+  Widget _navArrow(IconData icon, bool enabled, VoidCallback onTap) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 200),
+      opacity: enabled ? 1 : 0,
+      child: IgnorePointer(
+        ignoring: !enabled,
+        child: Material(
+          color: Colors.black.withValues(alpha: 0.4),
+          shape: const CircleBorder(),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Icon(icon, color: Colors.white, size: 28),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _openNavigation(Place p) async {
     final uri = Uri.parse(
         'https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}');
@@ -148,7 +176,54 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                         ),
                       ),
                     ),
-                    if (images.length > 1)
+                    if (images.length > 1) ...[
+                      // Licznik „1 / N".
+                      Positioned(
+                        top: 14,
+                        left: 14,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.45),
+                            borderRadius: BorderRadius.circular(40),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            const Icon(Icons.photo_library_rounded,
+                                size: 14, color: Colors.white),
+                            const SizedBox(width: 5),
+                            Text('${_page + 1} / ${images.length}',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
+                      ),
+                      // Strzałki (działają też myszą na desktopie).
+                      Positioned(
+                        left: 8,
+                        top: 0,
+                        bottom: 40,
+                        child: Center(
+                          child: _navArrow(
+                              Icons.chevron_left_rounded,
+                              _page > 0,
+                              () => _goToPage(_page - 1, images.length)),
+                        ),
+                      ),
+                      Positioned(
+                        right: 8,
+                        top: 0,
+                        bottom: 40,
+                        child: Center(
+                          child: _navArrow(
+                              Icons.chevron_right_rounded,
+                              _page < images.length - 1,
+                              () => _goToPage(_page + 1, images.length)),
+                        ),
+                      ),
+                      // Klikalne kropki.
                       Positioned(
                         bottom: 14,
                         left: 0,
@@ -157,22 +232,27 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: List.generate(
                             images.length,
-                            (i) => AnimatedContainer(
-                              duration: const Duration(milliseconds: 250),
-                              margin:
-                                  const EdgeInsets.symmetric(horizontal: 3),
-                              width: i == _page ? 22 : 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: i == _page
-                                    ? Colors.white
-                                    : Colors.white60,
-                                borderRadius: BorderRadius.circular(10),
+                            (i) => GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => _goToPage(i, images.length),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 250),
+                                margin: const EdgeInsets.symmetric(
+                                    horizontal: 3, vertical: 6),
+                                width: i == _page ? 22 : 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: i == _page
+                                      ? Colors.white
+                                      : Colors.white60,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
+                    ],
                   ],
                 ),
         ),

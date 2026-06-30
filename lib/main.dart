@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import 'data/repository.dart';
@@ -29,10 +30,25 @@ class MiejscownikApp extends StatelessWidget {
       title: 'Miejscownik',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
+      scrollBehavior: const _AppScrollBehavior(),
       builder: (context, child) => _MobileFrame(child: child),
       home: const RootScaffold(),
     );
   }
+}
+
+/// Pozwala przeciągać galerie/listy także myszą i trackpadem (na desktopie
+/// Flutter domyślnie tego nie robi).
+class _AppScrollBehavior extends MaterialScrollBehavior {
+  const _AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+      };
 }
 
 /// Mobile-first: na szerokim ekranie zamyka aplikację w wyśrodkowanej kolumnie
