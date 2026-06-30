@@ -128,8 +128,12 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
 
   Widget _imageHeader(Place p) {
     final images = p.images;
+    // Zdjęcia większe, proporcjonalne do szerokości kolumny (mobile-first).
+    final w = MediaQuery.sizeOf(context).width;
+    final colW = w > 600 ? 600.0 : w;
+    final expanded = (colW * 0.86).clamp(340.0, 540.0);
     return SliverAppBar(
-      expandedHeight: 380,
+      expandedHeight: expanded,
       pinned: true,
       backgroundColor: AppColors.ink,
       foregroundColor: Colors.white,
@@ -379,34 +383,54 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   }
 
   /// Zwraca 2–3 linie adresu. Nowy format jest rozdzielony '\n'; stary, długi
-  /// ciąg z geokodera grupujemy heurystycznie.
+  /// ciąg z geokodera grupujemy heurystycznie. Czyści też śmieci ze starych
+  /// zapisów: samotny numer domu i zdublowany kraj.
   List<String> _addressLines(String address) {
-    final seen = <String>{};
+    List<String> lines;
     if (address.contains('\n')) {
-      return address
-          .split('\n')
+      lines =
+          address.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    } else {
+      final parts = address
+          .split(',')
           .map((e) => e.trim())
-          .where((e) => e.isNotEmpty && seen.add(e))
+          .where((e) => e.isNotEmpty)
           .toList();
+      if (parts.length <= 3) {
+        lines = parts;
+      } else {
+        // L1 = ulica; L2 = kod + miasto; L3 = kraj.
+        final pc = RegExp(r'\d{2}-\d{3}');
+        final pcIdx = parts.indexWhere((e) => pc.hasMatch(e));
+        final l2 = pcIdx >= 0
+            ? [
+                parts[pcIdx],
+                if (pcIdx + 1 < parts.length) parts[pcIdx + 1],
+              ].join(' ')
+            : parts[1];
+        lines = [parts.first, l2, parts.last];
+      }
     }
-    final parts = address
-        .split(',')
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty && seen.add(e))
-        .toList();
-    if (parts.length <= 3) return parts;
-    // L1 = ulica/nazwa; L2 = kod + miasto; L3 = kraj/województwo.
-    final pc = RegExp(r'\d{2}-\d{3}');
-    final pcIdx = parts.indexWhere((e) => pc.hasMatch(e));
-    final l1 = parts.first;
-    final l2 = pcIdx >= 0
-        ? [
-            parts[pcIdx],
-            if (pcIdx + 1 < parts.length) parts[pcIdx + 1],
-          ].join(' ')
-        : parts[1];
-    final l3 = parts.last;
-    return [l1, l2, l3];
+
+    // Odrzuć linie będące samym numerem domu bez ulicy (np. „6").
+    lines = lines.where((e) => !RegExp(r'^\d+[A-Za-z]?$').hasMatch(e)).toList();
+
+    // Usuń zdublowany kraj z końcówek (np. „56-416 Polska" + „Polska").
+    if (lines.length >= 2) {
+      final last = lines.last;
+      final isWord = RegExp(r'^[^\d,]+$').hasMatch(last);
+      if (isWord) {
+        for (var i = 0; i < lines.length - 1; i++) {
+          if (lines[i].endsWith(' $last')) {
+            lines[i] =
+                lines[i].substring(0, lines[i].length - last.length - 1).trim();
+          }
+        }
+      }
+    }
+
+    final seen = <String>{};
+    return lines.where((e) => e.isNotEmpty && seen.add(e)).toList();
   }
 
   /// Notatki: każda linia jako punkt w eleganckim panelu.
