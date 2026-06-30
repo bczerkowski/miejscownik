@@ -381,17 +381,18 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
   /// Zwraca 2–3 linie adresu. Nowy format jest rozdzielony '\n'; stary, długi
   /// ciąg z geokodera grupujemy heurystycznie.
   List<String> _addressLines(String address) {
+    final seen = <String>{};
     if (address.contains('\n')) {
       return address
           .split('\n')
           .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
+          .where((e) => e.isNotEmpty && seen.add(e))
           .toList();
     }
     final parts = address
         .split(',')
         .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
+        .where((e) => e.isNotEmpty && seen.add(e))
         .toList();
     if (parts.length <= 3) return parts;
     // L1 = ulica/nazwa; L2 = kod + miasto; L3 = kraj/województwo.

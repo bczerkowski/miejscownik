@@ -151,18 +151,20 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     final country = pick(['country']);
 
     final lines = <String>[];
-    final l1 = [?road, ?house].join(' ');
-    if (l1.isNotEmpty) {
-      lines.add(l1);
-    } else if (name != null) {
-      lines.add(name);
-    }
+    // L1: ulica (+ numer). Sam numer bez ulicy pomijamy — użyjemy nazwy POI.
+    final l1 = road != null ? [road, ?house].join(' ') : (name ?? '');
+    if (l1.isNotEmpty) lines.add(l1);
+    // L2: kod pocztowy + miejscowość.
     final l2 = [?postcode, ?city].join(' ');
     if (l2.isNotEmpty) lines.add(l2);
+    // L3: województwo + kraj.
     final l3 = [?state, ?country].join(', ');
     if (l3.isNotEmpty) lines.add(l3);
 
-    return lines.isEmpty ? displayName : lines.join('\n');
+    // Usuń puste i powtórzenia (np. dublujący się kraj), zachowując kolejność.
+    final seen = <String>{};
+    final clean = lines.where((e) => e.isNotEmpty && seen.add(e)).toList();
+    return clean.isEmpty ? displayName : clean.join('\n');
   }
 
   void _onTapMap(TapPosition _, LatLng p) {

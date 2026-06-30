@@ -34,6 +34,10 @@
   <title>Miejscownik</title>
   <link rel="manifest" href="manifest.json">
 
+  <script>
+    {{flutter_build_config}}
+  </script>
+
   <style>
     body { background-color: #F7F5F1; }
     #loading {
@@ -51,14 +55,34 @@
 </head>
 <body>
   <div id="loading"><div class="dot"></div><div>Miejscownik</div></div>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Zawsze ładuj najnowszą wersję: wyrejestruj każdy wcześniej zainstalowany
+    // service worker i wyczyść jego cache; nie rejestruj nowego. Dzięki temu
+    // wdrożenia nigdy nie są serwowane jako stara, zacache'owana wersja.
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations()
+          .then(function (rs) { rs.forEach(function (r) { r.unregister(); }); })
+          .catch(function () {});
+    }
+    if (window.caches) {
+      caches.keys()
+          .then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); })
+          .catch(function () {});
+    }
+  </script>
+
+  <!-- Ręczna inicjalizacja Fluttera BEZ service workera. -->
+  <script src="flutter.js" defer></script>
+  <script>
+    window.addEventListener('load', function () {
+      _flutter.loader.load({
+        onEntrypointLoaded: async function (engineInitializer) {
+          const appRunner = await engineInitializer.initializeEngine();
+          await appRunner.runApp();
+        }
+      });
+    });
+  </script>
 </body>
 </html>
